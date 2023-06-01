@@ -1,4 +1,4 @@
-# CART for few-shot medical image segmentation
+# FSMIS via GMRD
 
 ![image](https://github.com/zmcheng9/GMRD/blob/main/overview.png)
 
