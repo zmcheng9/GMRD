@@ -46,8 +46,8 @@ Run `./script/evaluate.sh`
   journal={IEEE Transactions on Medical Imaging}, 
   title={Few-Shot Medical Image Segmentation via Generating Multiple Representative Descriptors}, 
   year={2024},
-  volume={},
-  number={},
-  pages={1-1}
+  volume={43},
+  number={6},
+  pages={2202-2214}
   doi={10.1109/TMI.2024.3358295}}
 ```
