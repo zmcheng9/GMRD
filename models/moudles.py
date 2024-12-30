@@ -9,7 +9,7 @@ class MLP(nn.Module):
         self.reduce = nn.Sequential(
             nn.Linear(in_features=self.in_dim*self.in_dim, out_features=self.out_dim, bias=True),
             nn.Dropout(p=0.2),
-	    nn.ReLU(inplace=True),
+	    # nn.ReLU(inplace=True),
             # nn.Linear(in_features=16384, out_features=4096, bias=True),
             # nn.Dropout(p=0.1),
             nn.Linear(in_features=self.out_dim, out_features=self.out_dim, bias=True)
