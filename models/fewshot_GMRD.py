@@ -76,7 +76,6 @@ class FewShotSeg(nn.Module):
 
         ###### Compute loss ######
         align_loss = torch.zeros(1).to(self.device)
-        aux_loss = torch.zeros(1).to(self.device)
         outputs = []
         for epi in range(supp_bs):
             ###### Extract prototypes ######
@@ -118,16 +117,15 @@ class FewShotSeg(nn.Module):
 
                 outputs.append(preds)
                 if train:
-                    align_loss_epi, aux_loss_epi = self.align_aux_Loss([supp_fts[epi]], [qry_fts[epi]], preds,
+                    align_loss_epi = self.align_aux_Loss([supp_fts[epi]], [qry_fts[epi]], preds,
                                                          supp_mask[epi], fg_pts, bg_pts)  # fg_pts, bg_pts
                     align_loss += align_loss_epi
-                    aux_loss += aux_loss_epi
 
 
         output = torch.stack(outputs, dim=1)  # N x B x (1 + Wa) x H x W
         output = output.view(-1, *output.shape[2:])
 
-        return output, align_loss / supp_bs, aux_loss / supp_bs
+        return output, align_loss / supp_bs
 
 
     def getPred(self, fts, prototype, thresh):
@@ -237,7 +235,6 @@ class FewShotSeg(nn.Module):
 
         # Compute the support loss
         loss = torch.zeros(1).to(self.device)
-        loss_aux = torch.zeros(1).to(self.device)
         for way in range(n_ways):
             if way in skip_ways:
                 continue
@@ -248,8 +245,6 @@ class FewShotSeg(nn.Module):
                 fg_prototypes = self.get_all_prototypes([qry_fts_])
                 bg_pts_ = [self.get_bg_pts(qry_fts[0], pred_mask[way + 1])]
                 bg_pts_ = self.get_all_prototypes([bg_pts_])
-
-                loss_aux += self.get_aux_loss(sup_fg_pts[way], fg_prototypes[way], sup_bg_pts[way], bg_pts_[way])
 
                 # Get predictions
                 supp_pred = self.get_fg_sim(supp_fts[0][way, [shot]], fg_prototypes[way])   # N x Wa x H' x W'
@@ -271,7 +266,7 @@ class FewShotSeg(nn.Module):
                 log_prob = torch.log(torch.clamp(preds, eps, 1 - eps))
                 loss += self.criterion(log_prob, supp_label[None, ...].long()) / n_shots / n_ways
 
-        return loss, loss_aux
+        return loss
 
 
     def get_fg_pts(self, features, mask):
@@ -400,33 +395,6 @@ class FewShotSeg(nn.Module):
         bg_sim = self.decoder2(bg_sim)
 
         return bg_sim  # [1, 1, 64, 64]
-
-    def get_aux_loss(self, sup_fg_pts, qry_fg_pts, sup_bg_pts, qry_bg_pts):
-        d1 = F.normalize(sup_fg_pts, dim=-1)
-        d2 = F.normalize(qry_fg_pts, dim=-1)
-        b1 = F.normalize(sup_bg_pts, dim=-1)
-        b2 = F.normalize(qry_bg_pts, dim=-1)
-
-        fg_intra0 = torch.matmul(d1[:-2], d2[:-2].transpose(0, 1))
-        fg_intra1 = torch.matmul(d1[[-2]], d2[-2])
-        fg_intra2 = torch.matmul(d1[[-1]], d2[-1])
-        fg_intra0, _ = torch.max(fg_intra0, dim=1)
-        fg_intra0 = torch.cat([fg_intra0, fg_intra1, fg_intra2])
-        fg_intra0 = torch.mean(fg_intra0)
-
-        bg_intra0 = torch.matmul(b1[:-2], b2[:-2].transpose(0, 1))
-        bg_intra1 = torch.matmul(b1[[-2]], b2[-2])
-        bg_intra2 = torch.matmul(b1[[-1]], b2[-1])
-        bg_intra0, _ = torch.max(bg_intra0, dim=1)
-        bg_intra0 = torch.cat([bg_intra0, bg_intra1, bg_intra2])
-        bg_intra0 = torch.mean(bg_intra0)
-        intra_loss = 2 - fg_intra0 - bg_intra0
-
-        sup_inter = torch.matmul(d1, b1.transpose(0, 1))
-        qry_inter = torch.matmul(d2, b2.transpose(0, 1))
-        inter_loss = max((0, torch.mean(sup_inter))) + max((0, torch.mean(qry_inter)))
-
-        return intra_loss + inter_loss
 
 
 
